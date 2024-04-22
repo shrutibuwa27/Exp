@@ -1,0 +1,53 @@
+clear
+
+N = 10^6; % number of bits or symbols
+rand('state',100); % initializing the rand() function
+randn('state',200); % initializing the randn() function
+ 
+% Transmitter
+ip = rand(1,N)>0.5; % generating 0,1 with equal probability
+s = 2*ip-1; % BPSK modulation 0 -> -1; 1 -> 1
+n = 1/sqrt(2)*[randn(1,N) + i*randn(1,N)]; % AWGN, 0dB variance
+Eb_N0_dB = 0:60; % SNR range from 0 to 60 dB
+for ii = 1:length(Eb_N0_dB)
+
+    % Noise addition for AWGN channel
+    y_awgn = s + 10^(-Eb_N0_dB(ii)/20)*n; % additive white gaussian noise
+    % receiver - hard decision decoding
+    ipHat_awgn = real(y_awgn)>0;
+
+    % counting the errors for AWGN channel
+    nErr_awgn(ii) = size(find([ip- ipHat_awgn]),2);
+    
+    % Rayleigh Fading Channel
+    h = 1/sqrt(2)*[randn(1,N) + 1i*randn(1,N)]; % Rayleigh fading channel
+    y_rayleigh = h.*s + 10^(-Eb_N0_dB(ii)/20)*n; % received signal
+    % receiver - hard decision decoding
+    yHat = y_rayleigh./h;
+    ipHat_rayleigh = real(yHat)>0;
+
+    % counting the errors for Rayleigh channel
+    nErr_rayleigh(ii) = size(find([ip- ipHat_rayleigh]),2);
+end
+
+simBer_awgn = nErr_awgn/N; % simulated ber for AWGN
+theoryBer_awgn = 0.5*erfc(sqrt(10.^(Eb_N0_dB/10))); % theoretical ber for AWGN
+
+simBer_rayleigh = nErr_rayleigh/N; % simulated ber for Rayleigh
+EbN0Lin = 10.^(Eb_N0_dB/10);
+theoryBer_rayleigh = 0.5.*(1-sqrt(EbN0Lin./(EbN0Lin+1)));
+
+% plot
+close all
+figure(1)
+semilogy(Eb_N0_dB,theoryBer_awgn,'b.-');
+hold on
+semilogy(Eb_N0_dB,simBer_awgn,'mx-');
+semilogy(Eb_N0_dB,theoryBer_rayleigh,'r.-');
+semilogy(Eb_N0_dB,simBer_rayleigh,'go-');
+axis([0 60 10^-5 0.5])
+grid on
+legend('AWGN theory', 'AWGN simulation', 'Rayleigh theory', 'Rayleigh simulation');
+xlabel('Eb/No, dB');
+ylabel('Bit Error Rate');
+title('Bit error probability curve for BPSK modulation');
